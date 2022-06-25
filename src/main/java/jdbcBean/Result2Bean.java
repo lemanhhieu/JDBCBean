@@ -1,7 +1,7 @@
-package JDBCBean;
+package jdbcBean;
 
-import static JDBCBean.BeanUtil.*;
-import static JDBCBean.BeanToManyUtil.*;
+import static jdbcBean.BeanUtil.*;
+import static jdbcBean.BeanToManyUtil.*;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;

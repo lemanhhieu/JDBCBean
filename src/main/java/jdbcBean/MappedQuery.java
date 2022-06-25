@@ -22,14 +22,13 @@
  * SOFTWARE.
  */
 
-package JDBCBean;
+package jdbcBean;
 
-import JDBCBean.exception.JDBCBeanException;
+import jdbcBean.exception.JDBCBeanException;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 

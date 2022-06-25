@@ -1,9 +1,9 @@
-package JDBCBean;
+package jdbcBean;
 
-import JDBCBean.annotation.Embedded;
-import JDBCBean.annotation.Mapped;
-import JDBCBean.annotation.ToMany;
-import JDBCBean.exception.JDBCBeanException;
+import jdbcBean.annotation.Embedded;
+import jdbcBean.annotation.Mapped;
+import jdbcBean.annotation.ToMany;
+import jdbcBean.exception.JDBCBeanException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -14,7 +14,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static JDBCBean.JDBCUtil.*;
+import static jdbcBean.JDBCUtil.*;
 
 class BeanUtil {
 
@@ -223,9 +223,6 @@ class BeanUtil {
     }
 
     public static Method getSetter(Field field) {
-        if (field.getDeclaringClass().isRecord()) {
-            throw new JDBCBeanException("Record %s doesn't have setters".formatted(field.getDeclaringClass()));
-        }
 
         String name = "set" +
             Character.toUpperCase(field.getName().charAt(0)) +

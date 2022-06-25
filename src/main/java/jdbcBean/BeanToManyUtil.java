@@ -1,4 +1,4 @@
-package JDBCBean;
+package jdbcBean;
 
 import lombok.val;
 
@@ -8,8 +8,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static JDBCBean.JDBCUtil.assertTrue;
-import static JDBCBean.BeanUtil.*;
+import static jdbcBean.JDBCUtil.assertTrue;
+import static jdbcBean.BeanUtil.*;
 class BeanToManyUtil {
     public static List<DeepAnnotationInfo> getDeepToManyInfo(Class<?> clazz) {
 

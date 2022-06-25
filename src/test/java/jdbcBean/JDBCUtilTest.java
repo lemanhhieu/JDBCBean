@@ -1,8 +1,8 @@
-package JDBCBean;
+package jdbcBean;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import static JDBCBean.JDBCUtil.*;
+import static jdbcBean.JDBCUtil.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)

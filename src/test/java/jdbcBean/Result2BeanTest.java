@@ -1,4 +1,4 @@
-package JDBCBean;
+package jdbcBean;
 
 
 import lombok.val;
@@ -10,11 +10,10 @@ import java.sql.Statement;
 import java.util.Comparator;
 import java.util.List;
 
-import static JDBCBean.CommentsDb.*;
+import static jdbcBean.CommentsDb.*;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class Result2BeanTest {
-    static CommentsDb commentsDb;
+public class Result2BeanTest extends SharedDbContext {
+
     static final String testQuery1 = """
         SELECT
             c1.id AS id_1, c1.comment AS comment_1, c1.created_at AS created_at_1,
@@ -26,15 +25,9 @@ public class Result2BeanTest {
         WHERE c1.parent_comment_id IS NULL
     """;
 
-    @BeforeAll
-    static void initializeData() throws Exception {
-        commentsDb = new CommentsDb();
+    public Result2BeanTest() throws Exception {
     }
 
-    @AfterAll
-    static void closeDb() throws Exception {
-        commentsDb.close();
-    }
 
     @RepeatedTest(2)
     void testNormalToMany() throws Exception {

@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-package JDBCBean;
+package jdbcBean;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.RepeatedTest;

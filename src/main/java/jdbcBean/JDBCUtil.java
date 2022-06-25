@@ -1,9 +1,7 @@
-package JDBCBean;
+package jdbcBean;
 
-import JDBCBean.exception.JDBCBeanException;
+import jdbcBean.exception.JDBCBeanException;
 import org.jetbrains.annotations.NotNull;
-
-import java.util.Map;
 
 class JDBCUtil {
 

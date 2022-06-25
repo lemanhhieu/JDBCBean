@@ -1,4 +1,4 @@
-package JDBCBean.exception;
+package jdbcBean.exception;
 
 public class JDBCBeanException extends RuntimeException {
 

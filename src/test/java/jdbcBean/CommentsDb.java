@@ -1,15 +1,16 @@
-package JDBCBean;
+package jdbcBean;
 
-import JDBCBean.annotation.Embedded;
-import JDBCBean.annotation.Mapped;
-import JDBCBean.annotation.ToMany;
+import jdbcBean.annotation.Embedded;
+import jdbcBean.annotation.Mapped;
+import jdbcBean.annotation.ToMany;
 import lombok.*;
 import org.junit.jupiter.api.Assertions;
 
 import java.sql.*;
-import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+
 
 public class CommentsDb implements AutoCloseable {
     private static final String CONNECTION_STRING = "jdbc:hsqldb:mem:testdb;allowmultiqueries=true";
@@ -54,8 +55,15 @@ public class CommentsDb implements AutoCloseable {
         System.out.printf("Added %s comments to seed data%n", curId - 1);
         totalCommentCount = curId - 1;
     }
+    private static CommentsDb instance;
+    public static CommentsDb getInstance() throws SQLException {
+        if (instance == null) {
+            instance = new CommentsDb();
+        }
+        return instance;
+    }
 
-    public CommentsDb() throws SQLException {
+    private CommentsDb() throws SQLException {
         connection = DriverManager.getConnection(CONNECTION_STRING, USERNAME, PASSWORD);
         try (Statement statement = connection.createStatement()) {
             statement.execute("""

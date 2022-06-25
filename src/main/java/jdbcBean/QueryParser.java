@@ -22,10 +22,10 @@
  * SOFTWARE.
  */
 
-package JDBCBean;
+package jdbcBean;
 
 
-import JDBCBean.exception.JDBCBeanException;
+import jdbcBean.exception.JDBCBeanException;
 import lombok.val;
 
 import java.util.HashMap;
