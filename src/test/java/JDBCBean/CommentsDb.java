@@ -37,19 +37,17 @@ public class CommentsDb implements AutoCloseable {
                 // 3rd level
                 for (int k = 0; k < LEVEL_COMMENT_COUNT; k++) {
                     comment3List.add(new Comment1.Comment2.Comment3(
-                        UUID.randomUUID(), "comment " + curId, OffsetDateTime.now()
+                        curId, "comment " + curId, OffsetDateTime.now()
                     ));
                     curId++;
                 }
                 comment2List.add(new Comment1.Comment2(
-                    UUID.randomUUID(), "comment " + curId, OffsetDateTime.now(), comment3List
+                    curId, "comment " + curId, OffsetDateTime.now(), comment3List
                 ));
                 curId++;
             }
             seededData.add(new Comment1(
-                UUID.randomUUID(),
-                new EmbeddedCommentData("comment " + curId, OffsetDateTime.now()),
-                comment2List
+                new EmbeddedCommentData(curId, "comment " + curId, OffsetDateTime.now(), comment2List)
             ));
             curId++;
         }
@@ -62,10 +60,10 @@ public class CommentsDb implements AutoCloseable {
         try (Statement statement = connection.createStatement()) {
             statement.execute("""
                 CREATE TABLE comment (
-                    id UUID PRIMARY KEY,
+                    id INTEGER PRIMARY KEY,
                     comment VARCHAR(100) NOT NULL,
                     created_at TIMESTAMP(9) WITH TIME ZONE NOT NULL,
-                    parent_comment_id UUID,
+                    parent_comment_id INTEGER,
                     FOREIGN KEY (parent_comment_id) REFERENCES comment(id)
                 )
                 """);
@@ -76,19 +74,19 @@ public class CommentsDb implements AutoCloseable {
             """)
         ) {
             for (val comment1 : seededData) {
-                preparedStatement.setObject(1, comment1.getId());
+                preparedStatement.setObject(1, comment1.getCommentData().getId());
                 preparedStatement.setObject(2, comment1.getCommentData().getComment());
                 preparedStatement.setObject(3, comment1.getCommentData().getCreatedAt());
                 preparedStatement.setObject(4, null);
                 preparedStatement.addBatch();
                 preparedStatement.clearParameters();
 
-                for (val comment2 : comment1.getChildComments()) {
+                for (val comment2 : comment1.getCommentData().getChildComments()) {
 
                     preparedStatement.setObject(1, comment2.getId());
                     preparedStatement.setObject(2, comment2.getComment());
                     preparedStatement.setObject(3, comment2.getCreatedAt());
-                    preparedStatement.setObject(4, comment1.getId());
+                    preparedStatement.setObject(4, comment1.getCommentData().getId());
                     preparedStatement.addBatch();
                     preparedStatement.clearParameters();
 
@@ -126,29 +124,30 @@ public class CommentsDb implements AutoCloseable {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class EmbeddedCommentData {
+        @Mapped(type = JDBCType.INTEGER, isDistinct = true, name = "id_1")
+        private Integer id;
         @Mapped(type = JDBCType.VARCHAR, name = "comment_1")
         private String comment;
         @Mapped(type = JDBCType.TIMESTAMP_WITH_TIMEZONE, name = "created_at_1")
         private OffsetDateTime createdAt;
+        @ToMany
+        private List<Comment1.Comment2> childComments;
     }
 
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
     public static class Comment1 {
-        @Mapped(type = JDBCType.INTEGER, isDistinct = true, name = "id_1")
-        private UUID id;
+
         @Embedded
         private EmbeddedCommentData commentData;
-        @ToMany
-        private List<Comment2> childComments;
 
         @Data
         @AllArgsConstructor
         @NoArgsConstructor
         public static class Comment2 {
             @Mapped(type = JDBCType.INTEGER, isDistinct = true, name = "id_2")
-            private UUID id;
+            private Integer id;
             @Mapped(type = JDBCType.VARCHAR, name = "comment_2")
             private String comment;
             @Mapped(type = JDBCType.TIMESTAMP_WITH_TIMEZONE, name = "created_at_2")
@@ -161,7 +160,7 @@ public class CommentsDb implements AutoCloseable {
             @NoArgsConstructor
             public static class Comment3 {
                 @Mapped(type = JDBCType.INTEGER, isDistinct = true, name = "id_3")
-                private UUID id;
+                private Integer id;
                 @Mapped(type = JDBCType.VARCHAR, name = "comment_3")
                 private String comment;
                 @Mapped(type = JDBCType.TIMESTAMP_WITH_TIMEZONE, name = "created_at_3")
@@ -172,13 +171,23 @@ public class CommentsDb implements AutoCloseable {
     @Data
     @ToString
     public static class RecursiveComment {
-        @Mapped(type = JDBCType.INTEGER, isDistinct = true, name = "id")
-        private UUID id;
-        @Mapped(type = JDBCType.VARCHAR, name = "comment")
+        @Mapped(type = JDBCType.INTEGER, isDistinct = true)
+        private Integer id;
+        @Mapped(type = JDBCType.VARCHAR)
         private String comment;
-        @Mapped(type = JDBCType.TIMESTAMP_WITH_TIMEZONE, name = "created_at")
+        @Mapped(type = JDBCType.TIMESTAMP_WITH_TIMEZONE)
         private OffsetDateTime createdAt;
         @ToMany(recursiveDepth = 3)
         private List<RecursiveComment> comments;
+    }
+
+    @Data
+    public static class Comment {
+        @Mapped(type = JDBCType.INTEGER)
+        private Integer id;
+        @Mapped(type = JDBCType.VARCHAR)
+        private String comment;
+        @Mapped(type = JDBCType.TIMESTAMP_WITH_TIMEZONE)
+        private OffsetDateTime createdAt;
     }
 }

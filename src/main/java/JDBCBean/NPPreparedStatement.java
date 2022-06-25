@@ -1,9 +1,9 @@
 package JDBCBean;
 
 import lombok.Getter;
-import lombok.val;
 
 import java.sql.*;
+import static JDBCBean.BeanUtil.*;
 
 public class NPPreparedStatement implements AutoCloseable {
 
@@ -32,18 +32,17 @@ public class NPPreparedStatement implements AutoCloseable {
     }
 
     public <T> void setParameters(T object) throws ReflectiveOperationException, SQLException {
-        AnnotationInfo annotationInfo = BeanUtil.getAnnotationInfo(object.getClass());
-
-        for (AnnotationInfo.MappedInfo mappedInfo : annotationInfo.mapped()) {
+        DeepAnnotationInfo annotationInfo = getAnnotationInfo(object.getClass());
+        for (MappedInfo mappedInfo : annotationInfo.shallowInfo().mappedInfoList()) {
             preparedStatement.setObject(
                 mappedQuery.getParamIndex(mappedInfo.finalizedName()),
-                mappedInfo.fieldInfo().getter().exec(object),
-                mappedInfo.mappedAnnotation().type()
+                mappedInfo.getter().invoke(object),
+                mappedInfo.annotation().type()
             );
         }
 
-        for (val embeddedField : annotationInfo.embeddedFields()) {
-            setParameters(embeddedField.fieldInfo().getter().exec(object));
+        for (EmbeddedInfo embeddedField : annotationInfo.shallowInfo().embeddedInfoList()) {
+            setParameters(embeddedField.getter().invoke(object));
         }
     }
 

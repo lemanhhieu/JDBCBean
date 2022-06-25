@@ -4,26 +4,58 @@ import JDBCBean.annotation.Embedded;
 import JDBCBean.annotation.Mapped;
 import JDBCBean.annotation.ToMany;
 import JDBCBean.exception.JDBCBeanException;
-import lombok.val;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static JDBCBean.JDBCUtil.*;
+
 class BeanUtil {
 
-    private static final Map<Class<?>, AnnotationInfo> cachedAnnotationInfo = new ConcurrentHashMap<>();
-    public static AnnotationInfo getAnnotationInfo(Class<?> clazz) {
-        AnnotationInfo cachedResult = cachedAnnotationInfo.get(clazz);
-        if (cachedResult != null) {
-            return cachedResult;
+    public static void fieldsConsumer(Class<?> clazz, FieldConsumer fieldConsumer) {
+        for (Class<?> curClass = clazz; curClass != null; curClass = curClass.getSuperclass()) {
+            for (Field field : curClass.getDeclaredFields()) {
+                try {
+                    fieldConsumer.accept(field);
+                }
+                catch (ReflectiveOperationException e) {
+                    throw new RuntimeException(e);
+                }
+            }
         }
+    }
 
+    private static final Map<Class<?>, DeepAnnotationInfo> cachedDeepAnnotationInfo = new ConcurrentHashMap<>();
+
+    public static DeepAnnotationInfo getAnnotationInfo(Class<?> clazz) {
+        DeepAnnotationInfo cachedResult = cachedDeepAnnotationInfo.get(clazz);
+        if (cachedResult != null) return cachedResult;
+
+        AtomicReference<DistinctInfo> distinctInfo = new AtomicReference<>(null);
+        AtomicReference<ToManyInfo> toManyInfo = new AtomicReference<>(null);
+
+        ShallowAnnotationInfo shallowAnnotationInfo = getAnnotationInfo(distinctInfo, toManyInfo, o -> o, clazz);
+        DeepAnnotationInfo deepAnnotationInfo = new DeepAnnotationInfo(
+            shallowAnnotationInfo,
+            distinctInfo.get(),
+            toManyInfo.get()
+        );
+        cachedDeepAnnotationInfo.put(clazz, deepAnnotationInfo);
+        return deepAnnotationInfo;
+    }
+
+    private static ShallowAnnotationInfo getAnnotationInfo(
+        AtomicReference<@Nullable DistinctInfo> distinctInfo,
+        AtomicReference<@Nullable ToManyInfo> toManyInfo,
+        Accessor objectAccessor,
+        Class<?> clazz
+    ) {
         Constructor<?> noArgsConstructor;
         try {
             noArgsConstructor = clazz.getConstructor();
@@ -31,159 +63,150 @@ class BeanUtil {
         catch (NoSuchMethodException e) {
             throw new JDBCBeanException(String.format("Can't find no args constructor for %s", clazz.getName()));
         }
-        Collection<AnnotationInfo.MappedInfo> mappedFields = new LinkedList<>();
-        Collection<AnnotationInfo.EmbeddedInfo> embeddedFields = new LinkedList<>();
-        FieldInfo toMany = null;
-        AnnotationInfo.MappedInfo distinctField = null;
 
-        for (Class<?> curClass = clazz; curClass != null; curClass = curClass.getSuperclass()) {
+        List<MappedInfo> mappedInfoList = new ArrayList<>();
+        List<EmbeddedInfo> embeddedInfoList = new ArrayList<>();
 
-            for (Field field : curClass.getDeclaredFields()) {
 
-                Mapped mapped = field.getAnnotation(Mapped.class);
-                if (mapped != null) {
+        fieldsConsumer(clazz, field -> {
+            @Nullable Mapped mapped = field.getAnnotation(Mapped.class);
+            @Nullable Embedded embedded = field.getAnnotation(Embedded.class);
+            @Nullable ToMany toMany = field.getAnnotation(ToMany.class);
 
-                    FieldInfo fieldInfo = createFieldInfo(field);
-                    String finalizedName = mapped.name().isEmpty() ?
-                        convertCamelCaseToSnakeCase(field.getName())
-                        : mapped.name();
-                    val mappedInfo = new AnnotationInfo.MappedInfo(finalizedName, fieldInfo, mapped);
+            if (mapped != null) {
+                Method getter = getGetter(field);
+                MappedInfo mappedInfo = new MappedInfo(
+                    mapped.name().isEmpty() ? convertCamelCaseToSnakeCase(field.getName()) : mapped.name(),
+                    getGetter(field),
+                    getSetter(field),
+                    field,
+                    mapped
+                );
+                mappedInfoList.add(mappedInfo);
 
-                    mappedFields.add(mappedInfo);
-                    if (mapped.isDistinct()) {
-                        distinctField = mappedInfo;
-                    }
-                }
-                else if (field.isAnnotationPresent(Embedded.class)) {
-                    embeddedFields.add(new AnnotationInfo.EmbeddedInfo(createFieldInfo(field), getAnnotationInfo(field.getType())));
-                }
-                else if (field.isAnnotationPresent(ToMany.class)) {
-                    if (!field.getType().equals(List.class)) {
-                        throw new JDBCBeanException(String.format("Field \"%s\" is not of type %s", field.getName(), List.class.getName()));
-                    }
-                    toMany = createFieldInfo(field);
+                if (mapped.isDistinct() && distinctInfo.get() == null) {
+                    distinctInfo.set(new DistinctInfo(
+                        o -> getter.invoke(objectAccessor.exec(o)),
+                        mappedInfo
+                    ));
                 }
             }
-        }
+            else if (embedded != null) {
+                Method getter = getGetter(field);
+                embeddedInfoList.add(new EmbeddedInfo(
+                    getter,
+                    getSetter(field),
+                    field,
+                    getAnnotationInfo(
+                        distinctInfo,
+                        toManyInfo,
+                        o -> getter.invoke(objectAccessor.exec(o)),
+                        field.getType()
+                    ),
+                    embedded
+                ));
+            }
+            else if (toMany != null) {
+                if (toManyInfo.get() != null) {
+                    throw new JDBCBeanException(
+                        "Cannot use annotation ToMany on field %s of %s because field %s of %s is already annotated with ToMany."
+                            .formatted(
+                                field.getName(),
+                                field.getDeclaringClass().getName(),
+                                toManyInfo.get().field().getName(),
+                                toManyInfo.get().field().getDeclaringClass()
+                            )
+                    );
+                }
+                if (!field.getType().equals(List.class)) {
+                    throw new JDBCBeanException("Collection type of field %s must be %s"
+                        .formatted(field.getName(), List.class.getName())
+                    );
+                }
+                toManyInfo.set(new ToManyInfo(
+                    o -> getGetter(field).invoke(objectAccessor.exec(o)),
+                    (o, val) -> getSetter(field).invoke(objectAccessor.exec(o), val),
+                    field,
+                    toMany
+                ));
 
-        AnnotationInfo annotationInfo = new AnnotationInfo(
-            clazz,
+
+            }
+        });
+
+        return new ShallowAnnotationInfo(
             noArgsConstructor,
-            mappedFields,
-            embeddedFields,
-            toMany,
-            distinctField
-        );
-        cachedAnnotationInfo.put(clazz, annotationInfo);
-        return annotationInfo;
-    }
-
-    private static FieldInfo createFieldInfo(Field field) {
-        return new FieldInfo(
-            field,
-            (o)-> getGetter(field).invoke(o),
-            (o, val)-> getSetter(field).invoke(o, val)
+            mappedInfoList,
+            embeddedInfoList
         );
     }
 
-    private static final Map<Class<?>, List<AnnotationInfo>> cachedToManyInfo = new ConcurrentHashMap<>();
+    public record DeepAnnotationInfo(
+        @NotNull ShallowAnnotationInfo shallowInfo,
+        @Nullable DistinctInfo distinctInfo,
+        @Nullable ToManyInfo toManyInfo
+    ) {}
 
-    public static List<AnnotationInfo> getToManyInfo(Class<?> clazz) {
-        val cachedResult = cachedToManyInfo.get(clazz);
-        if (cachedResult != null) return cachedResult;
-
-        ArrayList<AnnotationInfo> annotationInfoList = new ArrayList<>();
-        AnnotationInfo curAnnotationInfo = getAnnotationInfo(clazz);
-
-        // recursive mode
-        if (
-            curAnnotationInfo.toMany() != null
-            && getCollectionElementType(curAnnotationInfo.toMany().field()).equals(clazz)
-        ) {
-            getToManyInfoRecursiveMode(annotationInfoList, curAnnotationInfo);
-        }
-        else {
-            getToManyInfoNormalMode(annotationInfoList, curAnnotationInfo);
-        }
-
-        cachedToManyInfo.put(clazz, annotationInfoList);
-        return annotationInfoList;
-    }
-
-    private static void getToManyInfoRecursiveMode(
-        ArrayList<AnnotationInfo> annotationInfoList,
-        AnnotationInfo curAnnotationInfo
+    public record ShallowAnnotationInfo(
+        @NotNull Constructor<?> noArgsConstructor,
+        @NotNull List<MappedInfo> mappedInfoList,
+        @NotNull List<EmbeddedInfo> embeddedInfoList
     ) {
-        int recursiveDepth = curAnnotationInfo
-            .toMany().field()
-            .getAnnotation(ToMany.class).recursiveDepth();
-
-        for (int i = 1; i <= recursiveDepth; i++) {
-            annotationInfoList.add(appendNumberToFieldName(i, curAnnotationInfo));
-        }
     }
 
-    private static AnnotationInfo appendNumberToFieldName(int number, AnnotationInfo annotationInfo) {
-        val newMappedInfoList = annotationInfo.mapped()
-            .stream()
-            .map(mappedInfo -> new AnnotationInfo.MappedInfo(
-                "%s_%s".formatted(mappedInfo.finalizedName(), number),
-                mappedInfo.fieldInfo(),
-                mappedInfo.mappedAnnotation()
-            ))
-            .toList();
 
-        val newEmbeddedFields = annotationInfo.embeddedFields().stream()
-            .map(embeddedInfo -> new AnnotationInfo.EmbeddedInfo(
-                embeddedInfo.fieldInfo(),
-                appendNumberToFieldName(number, embeddedInfo.embeddedAnnotationInfo())
-            ))
-            .toList();
-
-        return new AnnotationInfo(
-            annotationInfo.clazz(),
-            annotationInfo.noArgsConstructor(),
-            newMappedInfoList,
-            newEmbeddedFields,
-            annotationInfo.toMany(),
-            new AnnotationInfo.MappedInfo(
-                "%s_%s".formatted(annotationInfo.distinctField().finalizedName(), number),
-                annotationInfo.distinctField().fieldInfo(),
-                annotationInfo.distinctField().mappedAnnotation()
-            )
-        );
-    }
-
-    private static void getToManyInfoNormalMode(
-        ArrayList<AnnotationInfo> annotationInfoList,
-        AnnotationInfo curAnnotationInfo
+    public record MappedInfo(
+        @NotNull String finalizedName,
+        @NotNull Method getter,
+        @NotNull Method setter,
+        @NotNull Field field,
+        @NotNull Mapped annotation
     ) {
-        while (true) {
-
-            assertTrue(
-                curAnnotationInfo.distinctField() != null,
-                String.format("No distinct field found for \"%s\"", curAnnotationInfo.clazz().getName())
-            );
-            annotationInfoList.add(curAnnotationInfo);
-            if (curAnnotationInfo.toMany() == null) {
-                break;
-            }
-            else {
-                Class<?> listElementType = getCollectionElementType(curAnnotationInfo.toMany().field());
-                curAnnotationInfo = getAnnotationInfo(listElementType);
-            }
-        }
     }
-    private static Class<?> getCollectionElementType(Field field) {
-        return (Class<?>) ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
+
+    public record EmbeddedInfo(
+        @NotNull Method getter,
+        @NotNull Method setter,
+        @NotNull Field field,
+        @NotNull ShallowAnnotationInfo annotationInfo,
+        @NotNull Embedded annotation
+    ) {
+    }
+
+    public record DistinctInfo(
+        @NotNull Accessor accessor,
+        @NotNull MappedInfo mappedInfo
+    ) {
+    }
+
+    public record ToManyInfo(
+        @NotNull Accessor accessor,
+        @NotNull DeepSetter deepSetter,
+        @NotNull Field field,
+        @NotNull ToMany annotation
+    ) {
+    }
+
+    @FunctionalInterface
+    public interface FieldConsumer {
+        void accept(Field field) throws ReflectiveOperationException;
+    }
+
+    @FunctionalInterface
+    public interface Accessor {
+        Object exec(Object o) throws ReflectiveOperationException;
+    }
+
+    @FunctionalInterface
+    public interface DeepSetter {
+        void exec(Object o, Object val) throws ReflectiveOperationException;
     }
 
     public static Method getGetter(Field field) {
         if (field.getDeclaringClass().isRecord()) {
             try {
                 return field.getDeclaringClass().getMethod(field.getName());
-            }
-            catch (ReflectiveOperationException e) {
+            } catch (ReflectiveOperationException e) {
                 throw new RuntimeException(e);
             }
         }
