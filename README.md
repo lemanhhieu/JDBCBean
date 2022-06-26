@@ -191,8 +191,7 @@ WHERE c1.parent_comment_id IS NULL
 
 Notice that the depth of the recursive data structure is 3,
 and we used `@ToMany(recursiveDepth = 3)` to declare the depth.
-Notice also that the column name has its depth level appended at the end (`_1`, `_2`,...) 
-despite the fact that
+Notice also that the column name has its depth level appended at the end (`_1`, `_2`,...).
 
 Fetching data
 
