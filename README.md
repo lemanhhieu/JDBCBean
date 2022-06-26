@@ -8,7 +8,7 @@ With this library, you can:
 * Convert ResultSet to Java Beans
 * Register and get CallableStatement OUT parameters using Java Beans
 
-Using lombok with this library is strongly recommended.
+Using [lombok](https://projectlombok.org/) with this library is strongly recommended.
 
 ---
 

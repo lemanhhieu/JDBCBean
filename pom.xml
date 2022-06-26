@@ -6,7 +6,7 @@
 
   <groupId>jdbcBean</groupId>
   <artifactId>JDBCBean</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <version>0.0.2-SNAPSHOT</version>
 
   <name>jdbcBean</name>
   <!-- FIXME change it to the project's website -->
