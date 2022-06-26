@@ -25,16 +25,28 @@
 
 package jdbcBean;
 
+import jdbcBean.exception.JDBCBeanException;
 import lombok.Getter;
 
 import java.sql.*;
+import java.util.List;
+
 import static jdbcBean.BeanUtil.*;
 
 /**
- * Allow you to assign SQL parameter by name.
- * Sql parameters must be in the format:
- * <br/>
- * {@literal <sql parameter> ::= :<parameter name>}
+ * Allow you to assign SQL parameter by name and Java Bean DTO. Example:
+ * <pre>{@code
+ * try (NPPreparedStatement statement = new NPPreparedStatement("""
+ *
+ *      SELECT * FROM inventory WHERE created_at >= :created_at
+ *
+ *      """, connection)
+ * ) {
+ *      List<InventoryDTO> inventories = statement
+ *          .setParameters(inventoryQueryDTO)
+ *          .execute()
+ *          .getList(InventoryDTO.class)
+ * }</pre>
  */
 public class NPPreparedStatement implements AutoCloseable {
 
@@ -43,8 +55,6 @@ public class NPPreparedStatement implements AutoCloseable {
 
     @Getter
     protected final MappedQuery mappedQuery;
-
-
 
     public NPPreparedStatement(String npSqlString, Connection connection) throws SQLException {
 
@@ -58,12 +68,14 @@ public class NPPreparedStatement implements AutoCloseable {
         statement = connection.prepareStatement(mappedQuery.getTranslatedQuery());
     }
 
-    public void setObject(String paramName, Object object) throws SQLException {
+    public NPPreparedStatement setObject(String paramName, Object object) throws SQLException {
         statement.setObject(mappedQuery.getParamIndex(paramName), object);
+        return this;
     }
 
-    public void setObject(String paramName, Object object, SQLType sqlType) throws SQLException {
+    public NPPreparedStatement setObject(String paramName, Object object, SQLType sqlType) throws SQLException {
         statement.setObject(mappedQuery.getParamIndex(paramName), object, sqlType);
+        return this;
     }
 
     /**
@@ -73,8 +85,9 @@ public class NPPreparedStatement implements AutoCloseable {
         return new Result2Bean(statement.getResultSet());
     }
 
-    public <T> void setParameters(T object) throws SQLException {
+    public <T> NPPreparedStatement setParameters(T object) throws SQLException {
         setStatementParameters(statement, mappedQuery, object);
+        return this;
     }
 
     static <T> void setStatementParameters(PreparedStatement statement, MappedQuery mappedQuery ,T object)
@@ -96,6 +109,23 @@ public class NPPreparedStatement implements AutoCloseable {
         catch (ReflectiveOperationException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public NPPreparedStatement execute() throws SQLException {
+        statement.execute();
+        return this;
+    }
+
+    public <T> List<T> getList(Class<T> clazz) throws SQLException {
+        return new Result2Bean(statement.getResultSet()).getList(clazz);
+    }
+
+    public <T> T getFirst(Class<T> clazz) throws SQLException {
+        return new Result2Bean(statement.getResultSet()).getFirst(clazz);
+    }
+
+    public <T> T getScalar() throws SQLException {
+        return new Result2Bean(statement.getResultSet()).getScalar();
     }
 
     @Override

@@ -37,7 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class CommentsDb implements AutoCloseable {
+public class CommentsDb {
     private static final String CONNECTION_STRING = "jdbc:hsqldb:mem:testdb;allowmultiqueries=true";
     private static final String USERNAME = "SA";
     private static final String PASSWORD = "";
@@ -148,10 +148,6 @@ public class CommentsDb implements AutoCloseable {
         }
     }
 
-    @Override
-    public void close() throws Exception {
-        connection.close();
-    }
 
     @Data
     @NoArgsConstructor

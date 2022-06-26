@@ -34,7 +34,25 @@ import java.sql.SQLException;
 import static jdbcBean.BeanUtil.*;
 
 
-
+/**
+ * Call database's stored procedures or functions using named parameters.
+ * Example:
+ * <pre>{@code
+ *
+ * try (NPCallableStatement statement = new NPCallableStatement("""
+ *
+ *      {call my_procedure(:param_1, :param_2, :param_3)}
+ *
+ * """, connection)) {
+ *
+ *      OutParamsDTO result = statement.registerOutParameters(OutParamsDTO.class)
+ *          .setParameters(paramsDTO)
+ *          .execute()
+ *          .getReturnedOutParameters(OutParamsDTO.class)
+ * }
+ *
+ * }</pre>
+ */
 public class NPCallableStatement implements AutoCloseable {
 
     @Getter
@@ -54,7 +72,7 @@ public class NPCallableStatement implements AutoCloseable {
     }
 
 
-    public void registerOutParameters(Class<?> clazz) throws SQLException {
+    public NPCallableStatement registerOutParameters(Class<?> clazz) throws SQLException {
         DeepAnnotationInfo deepAnnotationInfo = getAnnotationInfo(clazz);
 
         for (MappedInfo mappedInfo : deepAnnotationInfo.shallowInfo().mappedInfoList()) {
@@ -67,6 +85,7 @@ public class NPCallableStatement implements AutoCloseable {
         for (EmbeddedInfo embeddedInfo : deepAnnotationInfo.shallowInfo().embeddedInfoList()) {
             registerOutParameters(embeddedInfo.field().getType());
         }
+        return this;
     }
 
     public <T> T getObject(String paramName) throws SQLException {
@@ -92,9 +111,16 @@ public class NPCallableStatement implements AutoCloseable {
         }
     }
 
-    public <T> void setParameters(T object) throws SQLException {
+    public <T> NPCallableStatement setParameters(T object) throws SQLException {
         NPPreparedStatement.setStatementParameters(statement, mappedQuery, object);
+        return this;
     }
+
+    public NPCallableStatement execute() throws SQLException {
+        statement.execute();
+        return this;
+    }
+
 
     @Override
     public void close() throws Exception {

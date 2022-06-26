@@ -32,6 +32,9 @@ import java.lang.annotation.Target;
 import java.sql.JDBCType;
 
 
+/**
+ * Used to annotate that this field is a column / parameter values
+ */
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Mapped {

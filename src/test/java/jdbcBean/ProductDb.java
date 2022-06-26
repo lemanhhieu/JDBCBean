@@ -33,7 +33,7 @@ import lombok.Getter;
 import java.sql.*;
 import java.util.List;
 
-public class ProductDb implements AutoCloseable {
+public class ProductDb {
     private static final String CONNECTION_STRING = "jdbc:hsqldb:mem:productdb;allowmultiqueries=true";
     private static final String USERNAME = "SA";
     private static final String PASSWORD = "";
@@ -76,11 +76,6 @@ public class ProductDb implements AutoCloseable {
             instance = new ProductDb();
         }
         return instance;
-    }
-
-    @Override
-    public void close() throws Exception {
-        connection.close();
     }
 
     @Data

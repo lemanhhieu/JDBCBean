@@ -32,11 +32,20 @@ import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static jdbcBean.JDBCUtil.assertTrue;
 import static jdbcBean.BeanUtil.*;
 class BeanToManyUtil {
+
+    private static final Map<Class<?>, List<DeepAnnotationInfo>> cachedDeepToManyInfo = new ConcurrentHashMap<>();
     public static List<DeepAnnotationInfo> getDeepToManyInfo(Class<?> clazz) {
+
+        List<DeepAnnotationInfo> cachedResult = cachedDeepToManyInfo.get(clazz);
+        if (cachedResult != null) {
+            return cachedResult;
+        }
 
         List<DeepAnnotationInfo> annotationInfoList = new ArrayList<>();
         DeepAnnotationInfo curAnnotationInfo = getAnnotationInfo(clazz);
@@ -52,6 +61,8 @@ class BeanToManyUtil {
             toManyNormalMode(curAnnotationInfo, annotationInfoList);
         }
 
+
+        cachedDeepToManyInfo.put(clazz, annotationInfoList);
         return annotationInfoList;
     }
 
