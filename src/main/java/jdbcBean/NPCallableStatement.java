@@ -31,6 +31,8 @@ import lombok.Getter;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.List;
+
 import static jdbcBean.BeanUtil.*;
 
 
@@ -119,6 +121,18 @@ public class NPCallableStatement implements AutoCloseable {
     public NPCallableStatement execute() throws SQLException {
         statement.execute();
         return this;
+    }
+
+    public <T> List<T> getList(Class<T> clazz) throws SQLException {
+        return new Result2Bean(statement.getResultSet()).getList(clazz);
+    }
+
+    public <T> T getFirst(Class<T> clazz) throws SQLException {
+        return new Result2Bean(statement.getResultSet()).getFirst(clazz);
+    }
+
+    public <T> T getScalar() throws SQLException {
+        return new Result2Bean(statement.getResultSet()).getScalar();
     }
 
 
