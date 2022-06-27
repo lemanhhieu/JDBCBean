@@ -25,11 +25,11 @@
 
 package jdbcBean;
 
-import jdbcBean.exception.JDBCBeanException;
 import lombok.Getter;
 
 import java.sql.*;
 import java.util.List;
+import java.util.Map;
 
 import static jdbcBean.BeanUtil.*;
 
@@ -90,6 +90,19 @@ public class NPPreparedStatement implements AutoCloseable {
         return this;
     }
 
+
+    /**
+     * This method is useful when you want to build a dynamic query.
+     * @param parameters A dictionary of parameter's name and parameter's value
+     * @throws SQLException thrown by JDBC
+     */
+    public NPPreparedStatement setParametersFroMap(Map<String, SqlValue> parameters) throws SQLException {
+        for (var entry : parameters.entrySet()) {
+            setObject(entry.getKey(), entry.getValue().value(), entry.getValue().sqlType());
+        }
+        return this;
+    }
+
     static <T> void setStatementParameters(PreparedStatement statement, MappedQuery mappedQuery ,T object)
         throws SQLException {
         try {
@@ -115,6 +128,8 @@ public class NPPreparedStatement implements AutoCloseable {
         statement.execute();
         return this;
     }
+
+
 
     public <T> List<T> getList(Class<T> clazz) throws SQLException {
         return new Result2Bean(statement.getResultSet()).getList(clazz);
