@@ -32,7 +32,7 @@ import org.junit.jupiter.api.TestInstance;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class QueryParserTest {
 
-    @RepeatedTest(3)
+    @RepeatedTest(2)
     void happyDays() {
         String npSql = """
             SELECT * FROM table_x WHERE column_1 = :param1 AND column_2 = :param2;
@@ -47,5 +47,8 @@ public class QueryParserTest {
         Assertions.assertEquals(2, mappedQuery.getParamIndex("param2"));
         Assertions.assertEquals(3, mappedQuery.getParamIndex("param3"));
         Assertions.assertEquals(4, mappedQuery.getParamIndex("param4"));
+
+        MappedQuery mappedQuery2 = QueryParser.parseNPSql("SELECT * FROM table_x WHERE id = :param_1");
+        Assertions.assertEquals(1, mappedQuery2.getParamIndex("param_1"));
     }
 }

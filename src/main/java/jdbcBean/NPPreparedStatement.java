@@ -111,7 +111,7 @@ public class NPPreparedStatement implements AutoCloseable {
                 statement.setObject(
                     mappedQuery.getParamIndex(mappedInfo.finalizedName()),
                     mappedInfo.getter().invoke(object),
-                    mappedInfo.annotation().type()
+                    mappedInfo.annotation().type().getVendorTypeNumber()
                 );
             }
 

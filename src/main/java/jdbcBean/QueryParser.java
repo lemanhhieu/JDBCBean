@@ -63,7 +63,7 @@ class QueryParser {
                     paramName.append(rawSqlText.charAt(i));
 
                     //  loop until there is no next char or next char is not a java identifier char
-                    while (i + 2 <= rawSqlText.length() && Character.isJavaIdentifierPart(rawSqlText.charAt(i + 1))) {
+                    while (i + 1 < rawSqlText.length() && Character.isJavaIdentifierPart(rawSqlText.charAt(i + 1))) {
                         i++;
                         paramName.append(rawSqlText.charAt(i));
                     }
